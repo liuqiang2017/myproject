@@ -8,21 +8,18 @@ import Queue
 from flask import Flask
 app = Flask(__name__)
 
-@app.route('/')
-def index():
-    return 'hello world'
-
-@app.route('/laoqi')
-def hello():
-    return 'let is sleep laoqi'
-
 class master():
     def __init__(self):
         self.queue = Queue.Queue  
         pass
     
     def run(self):
-        pass
+        app.add_url_rule('/hello', 'hello', self.hello, methods = ['GET', 'POST'])
+        app.run(host='0.0.0.0', port='12345')
+    
+    def hello(self):
+        return 'hello word'
     
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port='12345')
+    obj = master()
+    obj.run()

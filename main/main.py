@@ -17,7 +17,7 @@ class master():
         app.add_url_rule('/hello', 'hello', self.hello, methods = ['GET', 'POST'])
         app.run(host='0.0.0.0', port='12345')
     
-    def hello(self):
+    def processThreadFunc(self) :
         return 'hello word'
     
 if __name__ == '__main__':

@@ -35,7 +35,7 @@ class master():
             return 'get method'
         elif request.method == 'POST':
             return 'post method'
-        return 'info' 
+        return 'information' 
        
     def processThreadFunc(self):
         while True:

@@ -2,11 +2,16 @@
 Created on 2017.1.8
 
 @author: lq
+
 '''
+import os
+import sqlite3
+from flask import Flask, request, session, g, redirect, url_for, abort, \
+     render_template, flash
 import threading
 import Queue
 from time import sleep
-from flask import Flask 
+
 app = Flask(__name__)
 
 class master():
@@ -26,7 +31,11 @@ class master():
         app.run(host='0.0.0.0', port='12345')
     
     def msgTransformationFunc(self):
-        return 'hello word'
+        if request.method == 'GET':
+            return 'get method'
+        elif request.method == 'POST':
+            return 'post method'
+        return 'info' 
        
     def processThreadFunc(self):
         while True:

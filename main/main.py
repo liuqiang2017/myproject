@@ -57,7 +57,7 @@ class master():
             li.append(json.loads(request.data))
             self.addInfo(self.accountInfo, self.queue, li)
             return request.data
-        return 'request error'
+        return json.dumps({"error": "request error"})
 
 
 if __name__ == '__main__':

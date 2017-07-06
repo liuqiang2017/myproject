@@ -47,7 +47,7 @@ class master():
         if request.method == 'GET':
             acc = {}
             if self.queue.empty():
-                return json.dumps({"error": "accounts is in use"})
+                return json.dumps({"error": "all accounts are in use"})
             guuid = self.queue.get()
             acc = self.accountInfo[guuid]
             del self.accountInfo[guuid]

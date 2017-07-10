@@ -5,6 +5,7 @@ Created on 2017.1.8
 
 '''
 import os
+import sys
 import time
 import uuid
 import json
@@ -15,7 +16,6 @@ from config import load_config
 from logging.handlers import RotatingFileHandler
 from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash
-
 app = Flask(__name__)
 config = load_config()
 
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
                 format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
                 datefmt='%a, %d %b %Y %H:%M:%S',
-                filename='log.log',
+                filename=sys.path[0] + '/log.log',
                 filemode='w')
     
     Rthandler = RotatingFileHandler('log.log', maxBytes=2*1024*1024,backupCount=5)

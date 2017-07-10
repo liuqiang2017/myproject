@@ -8,9 +8,11 @@ import os
 import time
 import uuid
 import json
+import logging
 import Queue
 from time import sleep
 from config import load_config
+from logging.handlers import RotatingFileHandler
 from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash
 
@@ -58,6 +60,9 @@ class master():
     def msgTransformFunc(self):
         if request.method == 'GET':
             acc = {}
+            logging.debug('This is debug message')
+            logging.info('This is info message')
+            logging.warning('This is warning message')
             if self.queue.empty():
                 return json.dumps({"error": "all accounts are in use"})
             guuid = self.queue.get()
@@ -73,5 +78,22 @@ class master():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG,
+                format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+                datefmt='%a, %d %b %Y %H:%M:%S',
+                filename='log.log',
+                filemode='w')
+    
+    Rthandler = RotatingFileHandler('log.log', maxBytes=2*1024*1024,backupCount=5)
+    Rthandler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    Rthandler.setFormatter(formatter)
+    logging.getLogger('').addHandler(Rthandler)
+    
+    streamHandler = logging.StreamHandler()
+    streamHandler.setLevel(logging.DEBUG)
+    streamHandler.setFormatter(formatter)
+    logging.getLogger('').addHandler(streamHandler)
+
     obj = master()
     obj.run()

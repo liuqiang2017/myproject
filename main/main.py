@@ -5,22 +5,23 @@ Created on 2017.1.8
 
 '''
 import os
+import time
 import uuid
 import json
-import sqlite3
-from flask import Flask, request, session, g, redirect, url_for, abort, \
-     render_template, flash
-import threading
 import Queue
 from time import sleep
+from config import load_config
+from flask import Flask, request, session, g, redirect, url_for, abort, \
+     render_template, flash
 
 app = Flask(__name__)
+config = load_config()
 
 class master():
     def __init__(self, num = 3):
         self.queue = Queue.Queue(10)
         self.accountInfo = {}
-        self.infoList = [{"a": "a"}, {"b": "b"}]
+        self.infoList = config.ACCOUNTLIST
         self.addInfo(self.accountInfo, self.queue, self.infoList)
 
     def addInfo(self, ac, qu, li):
@@ -32,6 +33,17 @@ class master():
                     qu.put(guuid)
                     ac[guuid] = {}
                     ac[guuid].update(item)
+
+    def waitCondition(delayTime, timeOut, condition):
+	tm = 0
+	assert(delayTime > 0) 
+	assert(timeOut > delayTime)
+	while tm < timeOut:
+            if condition(tm):
+                return True
+            tm = tm + delayTime
+            time.sleep(delayTime)
+        return False 
 
     def run(self):
         #start thread

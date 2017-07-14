@@ -23,8 +23,7 @@ config = load_config()
 mutex = threading.Lock()
 
 class master():
-    def __init__(self, num = 3):
-        self.li = []
+    def __init__(self, num = 2):
         self.threadNum = num
         self.threadList = []       
         self.availableAccQu= Queue.Queue()
@@ -46,8 +45,6 @@ class master():
                         guuid = uuid.uuid1()
                         qu.put(guuid)
                         ac[guuid] = item
-            print "##init:", self.accountInfo
-            print "ac:", ac
             mutex.release()
 
     #polling interface
@@ -79,22 +76,16 @@ class master():
         logging.info("timeout thread start.")
         while True:
             acc = self.queueInUse.get()
-            print "###############################acc in time out",acc
-            logging.info(acc["admin"] + " is in use[timeoutProcessThreadFunc]")
             condition = lambda s:acc in self.accountInfo.values()
-            msg = acc["admin"] + " was released."
-            result = self.waitCondition(1, 5, condition, msg)
-            print "result $$$$$$",result
-            logging.info("timeout_func:", self.accountInfo)
+            result = self.waitCondition(1, 30, condition)
             if not result:
+                li = []
                 logging.warning("timeout, release acc:" + acc["admin"])
-                self.li.append(acc)
-                print "li in timeout:",self.li
-                self.addAccountsInQueue(self.accountInfo, self.availableAccQu, self.li)
-                self.li.remove(acc)
+                li.append(acc)
+                self.addAccountsInQueue(self.accountInfo, self.availableAccQu, li)
+                li.remove(acc)
     #data process func    
     def msgTransformFunc(self):
-        print ("get_func:",self.accountInfo)
         if request.method == 'GET':
             acc = {}
             if self.availableAccQu.empty():
@@ -104,11 +95,9 @@ class master():
             guuid = self.availableAccQu.get()
             acc = self.accountInfo[guuid]
             #add to in use que
-            print "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",acc
+            logging.info("[get acc]:" + acc["admin"])
+            self.accountInfo.pop(guuid)
             self.queueInUse.put(acc)
-
-            logging.info("get acc:" + acc["admin"])
-            del self.accountInfo[guuid]
             return json.dumps(acc)
         elif request.method == 'POST':
             li = [] 

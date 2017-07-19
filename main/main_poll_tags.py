@@ -23,12 +23,12 @@ imutex = threading.Lock()
 
 class master():
     def __init__(self):
-        self.timeout =  10
         self.threadList = []
         self.timeoutPollList = []
         self.availableAccQu= Queue.Queue()
         self.accountInfo = {}
-        self.infoList = config.ACCOUNTLIST
+        self.infoList = config.accounts_list
+        self.timeout =  config.acc_timeout
         self.addAccountsInQueue(self.accountInfo, self.availableAccQu, self.infoList)
 
     #add acc in queue

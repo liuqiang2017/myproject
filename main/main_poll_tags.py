@@ -4,7 +4,6 @@ Created on 2017.1.8
 @author: lq
 
 '''
-import os
 import sys
 import time
 import uuid
@@ -12,14 +11,13 @@ import json
 import logging
 import Queue
 import threading
-from time import sleep
 from config import load_config
 from logging.handlers import RotatingFileHandler
 from flask import Flask, request
 app = Flask(__name__)
 config = load_config()
 
-imutex = threading.Lock()
+mutex = threading.Lock()
 
 class master():
     def __init__(self):
@@ -33,24 +31,23 @@ class master():
 
     #add acc in queue
     def addAccountsInQueue(self, ac, qu, li):
-        global imutex
+        global mutex
         try:
-            if imutex.acquire():
-                for item in li:
-                    #ac available dict
-                    if item not in ac.values():
-                        # set accounts, only 
-                        if item in self.infoList:
-                            logging.info("-------------add acc to available queue------------")
-                            logging.info(str(item))
-                            guuid = uuid.uuid1()
-                            qu.put(guuid)
+            for item in li:
+                #ac available dict
+                if item not in ac.values():
+                    # set accounts, only 
+                    if item in self.infoList:                
+                        logging.info("-------------add acc to available queue------------")
+                        logging.info(str(item))
+                        guuid = uuid.uuid1()
+                        qu.put(guuid)
+                        if mutex.acquire():
                             ac[guuid] = item
-                imutex.release()
+                            mutex.release()
         except Exception as e:
-            imutex.release()
-            logging.warning(e)
-
+            logging(e)
+            mutex.release()
     def run(self):
         #start thread
         pf = threading.Thread(target=self.addAccInPollListFunc, args = ())
@@ -89,8 +86,18 @@ class master():
                 pass
             except Exception as e:
                 logging.warning(e)
+                
+    def byteify(self, input):
+        if isinstance(input, dict):
+            return {self.byteify(key): self.byteify(value) for key, value in input.iteritems()}
+        elif isinstance(input, list):
+            return [self.byteify(element) for element in input]
+        elif isinstance(input, unicode):
+            return input.encode('utf-8')
+        else:
+            return input
 
-   #data process func    
+    #data process func    
     def msgTransformFunc(self):
         if request.method == 'GET':
             acc = {}
@@ -108,7 +115,8 @@ class master():
             return json.dumps(acc)
         elif request.method == 'POST':
             li = []
-            li.append(json.loads(request.data))
+            #li.append(json.loads(request.data))
+            li.append(self.byteify(json.loads(request.data)))            
             logging.info("---------------------release acc-----------------------")
             logging.info(json.loads(request.data)["admin"])
             self.addAccountsInQueue(self.accountInfo, self.availableAccQu, li)

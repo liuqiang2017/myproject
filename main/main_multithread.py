@@ -4,7 +4,6 @@ Created on 2017.1.8
 @author: lq
 
 '''
-import os
 import sys
 import time
 import uuid
@@ -12,7 +11,6 @@ import json
 import logging
 import Queue
 import threading
-from time import sleep
 from config import load_config
 from logging.handlers import RotatingFileHandler
 from flask import Flask, request
@@ -30,35 +28,28 @@ class master():
         self.availableAccQu= Queue.Queue()
         self.queueInUse = Queue.Queue()
         self.accountInfo = {}
-        self.infoList = config.ACCOUNTLIST
+        self.infoList = config.accounts_list
         self.addAccountsInQueue(self.accountInfo, self.availableAccQu, self.infoList)
 
     #add acc in queue
     def addAccountsInQueue(self, ac, qu, li):
-        global mutex
-        if mutex.acquire():
-            try:
-                for item in li:
-                    #ac available dict
-                    if item not in ac.values():
-                        # set accounts, only 
-                        if item in self.infoList:
-                            logging.info("-------------add acc to available queue------------")
-                            logging.info(str(item))
-                            guuid = uuid.uuid1()
-                            qu.put(guuid)
-                            ac[guuid] = item
-                mutex.release()
-            except Exception as e:
-                mutex.release()
-                logging.warning(e)
-
+        for item in li:
+            #ac available dict
+            if item not in ac.values():
+                # set accounts, only 
+                if item in self.infoList:
+                    logging.info("-------------add acc to available queue------------")
+                    logging.info(str(item))
+                    guuid = uuid.uuid1()
+                    qu.put(guuid)
+                    ac[guuid] = item
+     
     #polling interface
     def waitCondition(self, delayTime, timeOut, condition, msg = ""):
-	tm = 0
-	assert(delayTime > 0)
-	assert(timeOut > delayTime)
-	while tm < timeOut:
+        tm = 0
+        assert(delayTime > 0)
+        assert(timeOut > delayTime)
+        while tm < timeOut:
             if condition(tm):
                 if msg != "":
                     logging.info(msg)
@@ -70,6 +61,7 @@ class master():
     def run(self):
         #start thread
         for i in range(self.threadNum):
+            print i
             self.threadList.append(threading.Thread(target=self.timeoutProcessThreadFunc, args = ()))
         for p in self.threadList:
             p.start()
@@ -85,7 +77,7 @@ class master():
             logging.info("--------------available accounts------------------")
             for item in self.accountInfo.values():
                 logging.info(item)
-            time.sleep(60)
+            time.sleep(10)
 
     #timeout thread
     def timeoutProcessThreadFunc(self):
@@ -120,6 +112,7 @@ class master():
         elif request.method == 'POST':
             li = []
             li.append(json.loads(request.data))
+            print type(json.loads(request.data))
             logging.info("---------------------release acc-----------------------")
             logging.info(json.loads(request.data)["admin"])
             self.addAccountsInQueue(self.accountInfo, self.availableAccQu, li)

@@ -31,8 +31,17 @@ class master():
         
     def byteify(self, obj):
         if isinstance(obj, dict):
+#             res = {}
+#             for key, value in obj.iteritems():
+#                res = dict(res, **{self.byteify(key): self.byteify(value)})
+#             return res
             return {self.byteify(key): self.byteify(value) for key, value in obj.iteritems()}
         elif isinstance(obj, list):
+#             res = []
+#             for i in obj:
+#                 res.append(self.byteify(i))
+#             return res
+
             return [self.byteify(element) for element in obj]
         elif isinstance(obj, unicode):
             return obj.encode('utf-8')

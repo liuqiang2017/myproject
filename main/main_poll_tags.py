@@ -28,26 +28,37 @@ class master():
         self.infoList = config.accounts_list
         self.timeout =  config.acc_timeout
         self.addAccountsInQueue(self.accountInfo, self.availableAccQu, self.infoList)
+        
+    def byteify(self, obj):
+        if isinstance(obj, dict):
+            return {self.byteify(key): self.byteify(value) for key, value in obj.iteritems()}
+        elif isinstance(obj, list):
+            return [self.byteify(element) for element in obj]
+        elif isinstance(obj, unicode):
+            return obj.encode('utf-8')
+        else:
+            return obj
 
     #add acc in queue
     def addAccountsInQueue(self, ac, qu, li):
-        global mutex
-        try:
-            for item in li:
-                #ac available dict
-                if item not in ac.values():
-                    # set accounts, only 
-                    if item in self.infoList:                
-                        logging.info("-------------add acc to available queue------------")
-                        logging.info(str(item))
-                        guuid = uuid.uuid1()
-                        qu.put(guuid)
-                        if mutex.acquire():
-                            ac[guuid] = item
-                            mutex.release()
-        except Exception as e:
-            logging(e)
-            mutex.release()
+
+        for item in li:
+            #set data form
+            item = self.byteify(item)
+            try:
+                item.pop("account_url")
+            except KeyError:
+                pass
+            #ac available dict
+            if item not in ac.values():
+                # set accounts, only 
+                if item in self.infoList:                
+                    logging.info("-------------add acc to available queue------------")
+                    logging.info(str(item))
+                    guuid = uuid.uuid1()
+                    qu.put(guuid)
+                    ac[guuid] = item
+     
     def run(self):
         #start thread
         pf = threading.Thread(target=self.addAccInPollListFunc, args = ())
@@ -86,16 +97,6 @@ class master():
                 pass
             except Exception as e:
                 logging.warning(e)
-                
-    def byteify(self, input):
-        if isinstance(input, dict):
-            return {self.byteify(key): self.byteify(value) for key, value in input.iteritems()}
-        elif isinstance(input, list):
-            return [self.byteify(element) for element in input]
-        elif isinstance(input, unicode):
-            return input.encode('utf-8')
-        else:
-            return input
 
     #data process func    
     def msgTransformFunc(self):
@@ -116,7 +117,7 @@ class master():
         elif request.method == 'POST':
             li = []
             #li.append(json.loads(request.data))
-            li.append(self.byteify(json.loads(request.data)))            
+            li.append(json.loads(request.data))            
             logging.info("---------------------release acc-----------------------")
             logging.info(json.loads(request.data)["admin"])
             self.addAccountsInQueue(self.accountInfo, self.availableAccQu, li)

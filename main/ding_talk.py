@@ -2,7 +2,6 @@
 # -*- coding: utf-8  -*-
 
 import json
-import sys
 from requests import post as requests_post
 
 access_token = 'xxxx'
@@ -67,14 +66,12 @@ def usage():
               3. dingtalk "content for output" critical'''
 
 def Ding(content, lvl='warn', tel=''):
-    if tel == '' and lvl != 'critical':
-        ding_talk = DingTalk(access_token)
+    ding_talk = DingTalk(access_token)
+    if tel == '' and lvl != 'critical':     
         ding_talk.text_message(content)
     elif tel != '' and lvl != 'critical':
-        ding_talk = DingTalk(access_token)
         ding_talk.text_message(content, at=[tel])
     elif lvl == 'critical':
-        ding_talk = DingTalk(access_token)
         ding_talk.text_message(content, at_all=True)
     else:
         print usage()

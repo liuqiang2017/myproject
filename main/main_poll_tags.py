@@ -4,7 +4,6 @@ Created on 2017.1.8
 @author: lq
 
 '''
-import os
 import sys
 import time
 import uuid
@@ -12,14 +11,15 @@ import json
 import logging
 import Queue
 import threading
-from time import sleep
 from config import load_config
 from logging.handlers import RotatingFileHandler
 from flask import Flask, request
+from ding_talk import Ding
+
 app = Flask(__name__)
 config = load_config()
 
-imutex = threading.Lock()
+mutex = threading.Lock()
 
 class master():
     def __init__(self):
@@ -31,26 +31,48 @@ class master():
         self.timeout =  config.acc_timeout
         self.addAccountsInQueue(self.accountInfo, self.availableAccQu, self.infoList)
 
+    def byteify(self, obj):
+        if isinstance(obj, dict):
+            res = {}
+            for key, value in obj.iteritems():
+                res = dict(res, **{self.byteify(key): self.byteify(value)})
+            return res
+            #return {self.byteify(key): self.byteify(value) for (key, value) in obj.iteritems()}
+        elif isinstance(obj, list):
+            res = []
+            for i in obj:
+               res.append(self.byteify(i))
+            return res
+            #return [self.byteify(element) for element in obj]
+        elif isinstance(obj, unicode):
+            return obj.encode('utf-8')
+        else:
+            return obj
+
     #add acc in queue
     def addAccountsInQueue(self, ac, qu, li):
-        global imutex
-        try:
-            if imutex.acquire():
-                for item in li:
-                    #ac available dict
+        for item in li:
+            item = self.byteify(item)
+            try:
+                item.pop("account_url")
+            except KeyError:
+                pass
+            #ac available dict
+            global mutex
+            try:
+                if mutex.acquire():
                     if item not in ac.values():
                         # set accounts, only 
-                        if item in self.infoList:
+                        if item in self.infoList:                
                             logging.info("-------------add acc to available queue------------")
                             logging.info(str(item))
                             guuid = uuid.uuid1()
-                            qu.put(guuid)
                             ac[guuid] = item
-                imutex.release()
-        except Exception as e:
-            imutex.release()
-            logging.warning(e)
-
+                            qu.put(guuid)
+                    mutex.release()
+            except Exception as e:
+                logging,info(e)
+                mutex.release()
     def run(self):
         #start thread
         pf = threading.Thread(target=self.addAccInPollListFunc, args = ())
@@ -59,6 +81,7 @@ class master():
         pf.start()
 
         app.add_url_rule('/account', 'account', self.msgTransformFunc, methods = ['GET', 'POST'])
+        app.add_url_rule('/bindAcc', 'bindAcc', self.bindFunc, methods = ['POST'])
         app.run(host='0.0.0.0', port='12345')
 
     def infoReportThread(self):
@@ -67,7 +90,7 @@ class master():
             logging.info("--------------available accounts------------------")
             for item in self.accountInfo.values():
                 logging.info(item)
-            time.sleep(60)
+            time.sleep(120)
 
     #timeout thread
     def addAccInPollListFunc(self):
@@ -75,22 +98,49 @@ class master():
         while True:
             time.sleep(1)
             try:
-                for index in range(len(self.timeoutPollList)):
-                    if self.timeoutPollList[index]["timeout"]<1:
-                        acc = self.timeoutPollList[index]["account"]
-                        del self.timeoutPollList[index]
+                for index, item in enumerate(self.timeoutPollList):
+                    if item["timeout"]<1:
+                        self.timeoutPollList.remove(item)
+                        acc = item["account"]
+                        warnStr = "Account occupancy timeout, case:{0}, acc:{1}".format(item.get('case', 'invalued'), acc['admin'])
+                        Ding(warnStr)
                         li = []
                         li.append(acc)
-                        logging.warning("------Timeout, release acc------")
+                        logging.warning("------Timeout------")
                         logging.warning(acc)
                         self.addAccountsInQueue(self.accountInfo, self.availableAccQu, li)
                     self.timeoutPollList[index]["timeout"] = self.timeoutPollList[index]["timeout"] -1
             except IndexError:
                 pass
             except Exception as e:
-                logging.warning(e)
-
-   #data process func    
+                logging.warning(e) 
+    #bind func
+    def bindFunc(self):
+        logging.info("---------------------bind acc and case ---------------------")
+        if request.method == 'POST':
+            res = {}
+            flag = False
+            res = json.loads(request.data)
+            res = self.byteify(res)
+            for i, item in enumerate(self.timeoutPollList):
+                if item['account']['admin']==res['admin']:
+                    try:
+                        self.timeoutPollList[i]["case"] = res.get('case', 'invalued')
+                        flag = True
+                        break
+                    except IndexError:
+                        pass
+	    if flag:
+                logging.info('bind success case info:{0}, acc info: {1}'.format(res['case'], res['admin']))
+            else:
+                logging.warning('bing failed, case info:{0}, acc info: {1}'.format(res['case'], res['admin']))
+                return json.dumps({'code': 500, 'msg': "acc  {0} not exist in polling list".format(res['admin'])})
+            return json.dumps({'code': 200, 'msg': ""})
+        else:
+            return json.dumps({'code':400,'msg':'request error'})
+            
+                
+    #data process func    
     def msgTransformFunc(self):
         if request.method == 'GET':
             acc = {}
@@ -108,9 +158,16 @@ class master():
             return json.dumps(acc)
         elif request.method == 'POST':
             li = []
-            li.append(json.loads(request.data))
+            res = {}
+            res = json.loads(request.data)
+            res = self.byteify(res)
+            li.append(res)            
             logging.info("---------------------release acc-----------------------")
-            logging.info(json.loads(request.data)["admin"])
+            logging.info(res)
+            for item in self.timeoutPollList:
+		if res == item["account"]:
+		    self.timeoutPollList.remove(item)
+                    break
             self.addAccountsInQueue(self.accountInfo, self.availableAccQu, li)
             return request.data
         return json.dumps({"error": "request error"})

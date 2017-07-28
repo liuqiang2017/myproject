@@ -30,7 +30,7 @@ class master():
         self.availableAccQu= Queue.Queue()
         self.queueInUse = Queue.Queue()
         self.accountInfo = {}
-        self.infoList = config.ACCOUNTLIST
+        self.infoList = config.accounts_list
         self.addAccountsInQueue(self.accountInfo, self.availableAccQu, self.infoList)
 
     #add acc in queue

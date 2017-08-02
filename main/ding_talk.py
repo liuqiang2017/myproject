@@ -3,7 +3,9 @@
 import json
 import sys
 from requests import post as requests_post
-access_token = '22cf572122adf3fb52598caf760a12c39b7285cffd0b349fc1dbf9a153ac2eca'
+from config import load_config
+config = load_config()
+access_token = config.access_token
 
 class DingTalk(object):
     url = 'https://oapi.dingtalk.com/robot/send'

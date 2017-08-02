@@ -30,25 +30,6 @@ class master():
         self.infoList = config.accounts_list
         self.timeout =  config.acc_timeout
         self.addAccountsInQueue(self.accountInfo, self.availableAccQu, self.infoList)
-        
-    def byteify(self, obj):
-        if isinstance(obj, dict):
-#             res = {}
-#             for key, value in obj.iteritems():
-#                res = dict(res, **{self.byteify(key): self.byteify(value)})
-#             return res
-            return {self.byteify(key): self.byteify(value) for key, value in obj.iteritems()}
-        elif isinstance(obj, list):
-#             res = []
-#             for i in obj:
-#                 res.append(self.byteify(i))
-#             return res
-
-            return [self.byteify(element) for element in obj]
-        elif isinstance(obj, unicode):
-            return obj.encode('utf-8')
-        else:
-            return obj
 
     def byteify(self, obj):
         if isinstance(obj, dict):
@@ -71,23 +52,19 @@ class master():
     #add acc in queue
     def addAccountsInQueue(self, ac, qu, li):
         for item in li:
-            #set data form
             item = self.byteify(item)
-            try:
-                item.pop("account_url")
-            except KeyError:
-                pass
+            acc = dict(admin=item['admin'], password=item['password'])
             #ac available dict
             global mutex
             try:
                 if mutex.acquire():
-                    if item not in ac.values():
+                    if acc not in ac.values():
                         # set accounts, only 
-                        if item in self.infoList:                
+                        if acc in self.infoList:                
                             logging.info("-------------add acc to available queue------------")
-                            logging.info(str(item))
+                            logging.info(str(acc))
                             guuid = uuid.uuid1()
-                            ac[guuid] = item
+                            ac[guuid] = acc
                             qu.put(guuid)
                     mutex.release()
             except Exception as e:
@@ -145,15 +122,15 @@ class master():
             for i, item in enumerate(self.timeoutPollList):
                 if item['account']['admin']==res['admin']:
                     try:
-                        self.timeoutPollList[i]["case"] = res.get('case', 'invalued')
+                        self.timeoutPollList[i]["case"] = res['case']
                         flag = True
                         break
                     except IndexError:
                         pass
 	    if flag:
-                logging.info('bind success case info:{0}, acc info: {1}'.format(res['case'], res['admin']))
+                logging.info('bind success! case info:{0}, acc info: {1}'.format(res['case'], res['admin']))
             else:
-                logging.warning('bing failed, case info:{0}, acc info: {1}'.format(res['case'], res['admin']))
+                logging.warning('bing failed!  case info:{0}, acc info: {1}'.format(res['case'], res['admin']))
                 return json.dumps({'code': 500, 'msg': "acc  {0} not exist in polling list".format(res['admin'])})
             return json.dumps({'code': 200, 'msg': ""})
         else:
@@ -182,12 +159,10 @@ class master():
             res = json.loads(request.data)
             res = self.byteify(res)
             li.append(res)            
-            #li.append(json.loads(request.data))
-            li.append(json.loads(request.data))            
             logging.info("---------------------release acc-----------------------")
             logging.info(res)
             for item in self.timeoutPollList:
-		if res == item["account"]:
+		if res['admin'] == item["account"]['admin']:
 		    self.timeoutPollList.remove(item)
                     break
             self.addAccountsInQueue(self.accountInfo, self.availableAccQu, li)
